@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Table, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Table, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -16,7 +16,7 @@ class Category(Base):
     name = Column(String(50), nullable=False, unique=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    film_category = relationship('FilmCategory', cascade='all,delete,delete-orphan')
+    film_cat = relationship('FilmCategory', back_populates='category')
 
     def __repr__(self):
         return f"Category name: {self.name}"
@@ -28,26 +28,26 @@ class FilmCategory(Base):
     film_id = Column(Integer,
                      ForeignKey('film.id'),
                      primary_key=True,
-                     nullable=False)
+                     )
     category_id = Column(Integer,
                          ForeignKey('category.id'),
                          primary_key=True,
-                         nullable=False)
+                         )
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-
+    category = relationship('Category', back_populates='film_cat')
+    film = relationship('Film', back_populates='film_category')
 class Film(Base):
     __tablename__ = 'film'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(50), nullable=False, unique=True)
     description = Column(Text, nullable=False)
-    release_year = Column(DateTime)
+    release_year = Column(Integer)
     language_id = Column(Integer,
-                         ForeignKey('language.language_id'),
-                         nullable=False)
+                         ForeignKey('language.language_id'))
     rental_duration = Column(Integer)
-    rental_rate = Column(Integer)
+    rental_rate = Column(Float)
     length = Column(Integer)
     replacement_cost = Column(Integer)
     rating = Column(Integer)
@@ -55,9 +55,11 @@ class Film(Base):
     special_features = Column(Text)
     fulltext = Column(Text)
 
-    film_category = relationship('FilmCategory', cascade='all,delete,delete-orphan')
-    film_actor = relationship('FilmActor')
-    inventory = relationship('Inventory')
+    film_category = relationship('FilmCategory', back_populates='film')
+    language = relationship('Language', back_populates='film')
+    film_actors = relationship('Actor', back_populates='film')
+    inventory = relationship('Inventory', back_populates='film')
+
 
     def __repr__(self):
         return f"Film title: {self.title}"
@@ -70,7 +72,7 @@ class Language(Base):
     name = Column(String(50), nullable=False, unique=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    film = relationship('Film')
+    film = relationship('Film', back_populates='language')
 
     def __repr__(self):
         return f"Language: {self.name}"
@@ -84,7 +86,7 @@ class Actor(Base):
     last_name = Column(String(50), nullable=False)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    film_actor = relationship('FilmActor')
+    film_actor = relationship('FilmActor', back_populates='actor')
 
     def __repr__(self):
         return f"Actor: {self.first_name} {self.last_name}"
@@ -102,6 +104,9 @@ class FilmActor(Base):
                      primary_key=True,
                      )
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    actor = relationship('Actor', back_populates='film_actor')
+    film = relationship('Film', back_populates='film_actors')
+
 
 
 class Inventory(Base):
@@ -112,8 +117,14 @@ class Inventory(Base):
                      ForeignKey('film.id'),
                      nullable=False,
                      primary_key=True)
-    store_id = Column(Integer)
+    store_id = Column(Integer,
+                      ForeignKey('store.store_id'),
+                      primary_key=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
+
+    film = relationship('Film', back_populates='inventory')
+    rental = relationship('Rental', back_populates='inventory')
+    store = relationship('Store', back_populates='inventory')
 
 
 class Rental(Base):
@@ -123,19 +134,21 @@ class Rental(Base):
     rental_date = Column(DateTime, nullable=False)
     inventory_id = Column(Integer,
                           ForeignKey('inventory.inventory_id'),
-                          nullable=False,
                           primary_key=True)
     customer_id = Column(Integer,
                          ForeignKey('customer.customer_id'),
-                         nullable=False, )
+                         nullable=False,
+                         primary_key=True)
     return_date = Column(DateTime, nullable=False)
     staff_id = Column(Integer,
                       ForeignKey('staff.staff_id'),
-                      nullable=False)
+                      primary_key=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    inventory = relationship('Inventory')
-    staff = relationship('Staff')
+    inventory = relationship('Inventory', back_populates='rental')
+    staff = relationship('Staff', back_populates='rental')
+    customer = relationship('Customer', back_populates='rental')
+    payment = relationship('Payment', back_populates='rental')
 
 
 class Customer(Base):
@@ -150,12 +163,16 @@ class Customer(Base):
     email = Column(String(50), nullable=False, unique=True)
     address_id = Column(Integer,
                         ForeignKey('address.address_id'),
-                        nullable=False,
                         primary_key=True)
     is_active = Column(Boolean, nullable=False, default=True)
     create_date = Column(DateTime, nullable=False)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
-    rental_id = Column(Integer, ForeignKey('rental.rental_id'), nullable=False)
+    rental_id = Column(Integer, ForeignKey('rental.rental_id'),
+                       primary_key=True)
+
+    rental = relationship('Rental', back_populates='customer')
+    address = relationship('Address', back_populates='customer')
+    payment = relationship('Payment', back_populates='customer')
 
     def __repr__(self):
         return f"Customer: {self.first_name}, {self.last_name}, {self.email}"
@@ -169,18 +186,20 @@ class Staff(Base):
     last_name = Column(String(50), nullable=False)
     address_id = Column(Integer,
                         ForeignKey('address.address_id'),
-                        nullable=False,
                         primary_key=True)
     store_id = Column(Integer,
                       ForeignKey('store.store_id'),
-                      nullable=False)
+                      primary_key=True)
     active = Column(Boolean, nullable=False, default=True)
     username = Column(String(50), nullable=False, unique=True)
     password = Column(String(50), nullable=False, unique=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
     picture = Column(String(50), nullable=False)
 
-    address = relationship('Address')
+    address = relationship('Address', back_populates='staff')
+    rental = relationship('Rental', back_populates='staff')
+    store = relationship('Store', back_populates='staff')
+    payment = relationship('Payment', back_populates='staff')
 
     def __repr__(self):
         return f"Staff: {self.first_name}, {self.last_name}, {self.username}"
@@ -192,22 +211,19 @@ class Payment(Base):
     payment_id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(Integer,
                          ForeignKey('customer.customer_id'),
-                         nullable=False,
                          primary_key=True)
     staff_id = Column(Integer,
                       ForeignKey('staff.staff_id'),
-                      nullable=False,
                       primary_key=True)
     rental_id = Column(Integer,
                        ForeignKey('rental.rental_id'),
-                       nullable=False,
                        primary_key=True)
     amount = Column(Integer, nullable=False)
     payment_date = Column(DateTime, nullable=False)
 
-    rental = relationship('Rental')
-    customer = relationship('Customer')
-    staff = relationship('Staff')
+    rental = relationship('Rental', back_populates='payment')
+    customer = relationship('Customer', back_populates='customer')
+    staff = relationship('Staff', back_populates='payment')
 
     def __repr__(self):
         return f"Payment: {self.payment_id},{self.amount}"
@@ -218,17 +234,19 @@ class Address(Base):
 
     address_id = Column(Integer, primary_key=True, autoincrement=True)
     address = Column(String(50), nullable=False)
-    address2 = Column(String(50), nullable=False, unique=True)
+    address2 = Column(Integer, nullable=False, unique=True)
     district = Column(String(50), nullable=False)
     city_id = Column(Integer,
                      ForeignKey('city.city_id'),
-                     nullable=False,
                      primary_key=True)
     postal_code = Column(String(50), nullable=False)
     phone = Column(Integer, nullable=False)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    city = relationship('City')
+    city = relationship('City', back_populates='address')
+    customer = relationship('Customer', back_populates='address')
+    staff = relationship('Staff', back_populates='address')
+    store = relationship('Store', back_populates='address')
 
     def __repr__(self):
         return f"Address: {self.address}, {self.address2}, {self.district}"
@@ -241,11 +259,11 @@ class City(Base):
     city = Column(String(50), nullable=False, unique=True)
     country_id = Column(Integer,
                         ForeignKey('country.country_id'),
-                        nullable=False,
                         primary_key=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    country = relationship('Country')
+    country = relationship('Country', back_populates='city')
+    address = relationship('Address', back_populates='city')
 
     def __repr__(self):
         return f"City: {self.city}"
@@ -258,25 +276,28 @@ class Country(Base):
     country = Column(String(50), nullable=False, unique=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
+    city = relationship('City', back_populates='country')
+
     def __repr__(self):
         return f"Country: {self.country}"
 
+
 class Store(Base):
-    __tablename__ ='store'
+    __tablename__ = 'store'
 
     store_id = Column(Integer, primary_key=True, autoincrement=True)
     manager_staff_id = Column(Integer,
                               ForeignKey('staff.staff_id'),
-                              nullable=False,)
+                              nullable=False, )
     address_id = Column(Integer,
                         ForeignKey('address.address_id'),
                         nullable=False,
                         primary_key=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    address = relationship('Address')
-
-
+    address = relationship('Address', back_populates='store')
+    staff = relationship('Staff', back_populates='store')
+    inventory = relationship('Inventory', back_populates='store')
 
 
 Base.metadata.create_all(engine)
