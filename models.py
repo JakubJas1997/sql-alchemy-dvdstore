@@ -37,6 +37,8 @@ class FilmCategory(Base):
 
     category = relationship('Category', back_populates='film_cat')
     film = relationship('Film', back_populates='film_category')
+
+
 class Film(Base):
     __tablename__ = 'film'
 
@@ -57,9 +59,8 @@ class Film(Base):
 
     film_category = relationship('FilmCategory', back_populates='film')
     language = relationship('Language', back_populates='film')
-    film_actors = relationship('Actor', back_populates='film')
+    film_actors = relationship('FilmActor', back_populates='film')
     inventory = relationship('Inventory', back_populates='film')
-
 
     def __repr__(self):
         return f"Film title: {self.title}"
@@ -108,7 +109,6 @@ class FilmActor(Base):
     film = relationship('Film', back_populates='film_actors')
 
 
-
 class Inventory(Base):
     __tablename__ = 'inventory'
 
@@ -123,8 +123,9 @@ class Inventory(Base):
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
     film = relationship('Film', back_populates='inventory')
-    rental = relationship('Rental', back_populates='inventory')
-    store = relationship('Store', back_populates='inventory')
+    inventory_store = relationship('Store', back_populates='store_inventory')
+    inventory_rental = relationship('Rental', back_populates='rental_inventory')
+
 
 
 class Rental(Base):
@@ -145,10 +146,10 @@ class Rental(Base):
                       primary_key=True)
     last_updated = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    inventory = relationship('Inventory', back_populates='rental')
-    staff = relationship('Staff', back_populates='rental')
-    customer = relationship('Customer', back_populates='rental')
-    payment = relationship('Payment', back_populates='rental')
+    rental_inventory = relationship('Inventory', back_populates='inventory_rental', foreign_keys='Rental.inventory_id')
+    rental_customer_id = relationship('Customer', back_populates='customer_rental', foreign_keys='Rental.customer_id')
+    rental_staff = relationship('Staff', back_populates='staff_rental', foreign_keys='Rental.staff_id')
+    rental_customer = relationship('Customer', back_populates='customer_rental_id')
 
 
 class Customer(Base):
@@ -170,9 +171,10 @@ class Customer(Base):
     rental_id = Column(Integer, ForeignKey('rental.rental_id'),
                        primary_key=True)
 
-    rental = relationship('Rental', back_populates='customer')
-    address = relationship('Address', back_populates='customer')
-    payment = relationship('Payment', back_populates='customer')
+    customer_store = relationship('Store', back_populates='store_customer')
+    customer_rental_id = relationship('Rental', back_populates='rental_customer', foreign_keys='Customer.rental_id')
+    customer_address = relationship('Address', back_populates='address_customer')
+    customer_rental = relationship('Rental', back_populates='rental_customer_id')
 
     def __repr__(self):
         return f"Customer: {self.first_name}, {self.last_name}, {self.email}"
@@ -196,11 +198,10 @@ class Staff(Base):
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
     picture = Column(String(50), nullable=False)
 
-    address = relationship('Address', back_populates='staff')
-    rental = relationship('Rental', back_populates='staff')
-    store = relationship('Store', back_populates='staff')
-    payment = relationship('Payment', back_populates='staff')
-
+    staff_address = relationship('Address', back_populates='address_staff')
+    staff_store = relationship('Store', back_populates='store_staff')
+    staff_payment = relationship('Payment', back_populates='payment_staff')
+    staff_rental = relationship('Rental', back_populates='rental_staff')
     def __repr__(self):
         return f"Staff: {self.first_name}, {self.last_name}, {self.username}"
 
@@ -221,9 +222,9 @@ class Payment(Base):
     amount = Column(Integer, nullable=False)
     payment_date = Column(DateTime, nullable=False)
 
-    rental = relationship('Rental', back_populates='payment')
-    customer = relationship('Customer', back_populates='customer')
-    staff = relationship('Staff', back_populates='payment')
+    payment_customer = relationship('Customer', back_populates='customer_payment')
+    payment_staff = relationship('Staff', back_populates='staff_payment')
+    payment_rental = relationship('Rental', back_populates='rental_payment')
 
     def __repr__(self):
         return f"Payment: {self.payment_id},{self.amount}"
@@ -243,10 +244,10 @@ class Address(Base):
     phone = Column(Integer, nullable=False)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    city = relationship('City', back_populates='address')
-    customer = relationship('Customer', back_populates='address')
-    staff = relationship('Staff', back_populates='address')
-    store = relationship('Store', back_populates='address')
+    address_city = relationship('City', back_populates='city_address')
+    address_store = relationship('Store', back_populates='store_address')
+    address_staff = relationship('Staff', back_populates='staff_address')
+    address_customer = relationship('Customer', back_populates='customer_address')
 
     def __repr__(self):
         return f"Address: {self.address}, {self.address2}, {self.district}"
@@ -262,8 +263,8 @@ class City(Base):
                         primary_key=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    country = relationship('Country', back_populates='city')
-    address = relationship('Address', back_populates='city')
+    city_country = relationship('Country', back_populates='country_city')
+    city_address = relationship('Address', back_populates='address_city')
 
     def __repr__(self):
         return f"City: {self.city}"
@@ -276,10 +277,12 @@ class Country(Base):
     country = Column(String(50), nullable=False, unique=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    city = relationship('City', back_populates='country')
+    country_city = relationship('City', back_populates='city_country')
 
     def __repr__(self):
         return f"Country: {self.country}"
+
+
 
 
 class Store(Base):
@@ -295,9 +298,10 @@ class Store(Base):
                         primary_key=True)
     last_update = Column(DateTime, nullable=False, default=datetime.datetime.now)
 
-    address = relationship('Address', back_populates='store')
-    staff = relationship('Staff', back_populates='store')
-    inventory = relationship('Inventory', back_populates='store')
+    store_staff = relationship('Staff', back_populates='staff_store')
+    store_address = relationship('Address', back_populates='address_store')
+    store_customer = relationship('Customer', back_populates='customer_store')
+    store_inventory = relationship('Inventory', back_populates='inventory_store')
 
 
 Base.metadata.create_all(engine)
